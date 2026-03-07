@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1-}" == "--help" || "${1-}" == "-h" ]]; then
+  cat <<'USAGE'
+Usage: local-llm-doctor
+
+Performs basic environment checks for the local AI stack scripts.
+USAGE
+  exit 0
+fi
+
+status=0
+
+for cmd in docker ollama curl osascript; do
+  if command -v "$cmd" >/dev/null 2>&1; then
+    printf '[ok] %s found\n' "$cmd"
+  else
+    printf '[missing] %s not found in PATH\n' "$cmd" >&2
+    status=1
+  fi
+done
+
+if [[ "$status" -eq 0 ]]; then
+  echo 'Doctor checks passed.'
+else
+  echo 'Doctor checks found issues.' >&2
+fi
+
+exit "$status"

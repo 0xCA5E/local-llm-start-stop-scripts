@@ -6,3 +6,19 @@
 - These `.command` files are the compatibility layer that preserves the known-good AppleScript + Terminal behavior.
 - Homebrew-installed commands are thin wrappers that call the `.command` scripts.
 - During the initial migration, orchestration logic in the `.command` scripts should not be rewritten unless a change is required strictly for packaging compatibility.
+
+## CLI wrappers
+
+Executable wrapper scripts are available in `bin/`:
+
+- `bin/local-llm-start` → runs `Start AI.command`
+- `bin/local-llm-stop` → runs `Stop AI.command`
+- `bin/local-llm-doctor` → runs dependency checks
+
+Each wrapper:
+
+- invokes the underlying script with `/bin/bash`
+- safely quotes paths (including filenames with spaces)
+- forwards all arguments via `"$@"`
+- returns the underlying script exit code via `exec`
+- supports `--help`/`-h` at the wrapper level
