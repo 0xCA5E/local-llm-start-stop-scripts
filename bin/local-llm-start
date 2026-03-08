@@ -2,18 +2,56 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-LIBEXEC_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+PREFIX_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 
-if [[ "${1-}" == "--help" || "${1-}" == "-h" ]]; then
-  cat <<'USAGE'
-Usage: local-llm-start [ARGS...]
+if [[ -f "${PREFIX_DIR}/libexec/Start AI.command" ]]; then
+  TARGET_SCRIPT="${PREFIX_DIR}/libexec/Start AI.command"
+else
+  TARGET_SCRIPT="${PREFIX_DIR}/Start AI.command"
+fi
+
+STATE_DIR_ARG=""
+PASSTHROUGH_ARGS=()
+
+while (($#)); do
+  case "$1" in
+    --help|-h)
+      cat <<'USAGE'
+Usage: local-llm-start [--state-dir DIR] [ARGS...]
 
 Starts the local AI stack by invoking:
   Start AI.command
 
+Options:
+  --state-dir DIR  Override runtime state directory for this invocation.
+  -h, --help       Show this help.
+
 Any additional ARGS are forwarded to the underlying script.
 USAGE
-  exit 0
+      exit 0
+      ;;
+    --state-dir)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --state-dir requires a value." >&2
+        exit 2
+      fi
+      STATE_DIR_ARG="$2"
+      shift 2
+      ;;
+    --)
+      shift
+      PASSTHROUGH_ARGS+=("$@")
+      break
+      ;;
+    *)
+      PASSTHROUGH_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ -n "${STATE_DIR_ARG}" ]]; then
+  export LOCAL_LLM_STATE_DIR="${STATE_DIR_ARG}"
 fi
 
-exec /bin/bash "$LIBEXEC_DIR/Start AI.command" "$@"
+exec /bin/bash "$TARGET_SCRIPT" "${PASSTHROUGH_ARGS[@]}"

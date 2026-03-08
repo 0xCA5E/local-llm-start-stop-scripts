@@ -12,6 +12,10 @@ WEBUI_NAME="open-webui"
 # State file stored in user state directory (override with LOCAL_LLM_STATE_DIR)
 STATE_DIR="${LOCAL_LLM_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/local-llm}"
 STATE_FILE="${STATE_DIR}/terminal_window_ids.tmp"
+LEGACY_STATE_FILES=(
+  "/tmp/local_llm_terminal_window_ids.tmp"
+  "/tmp/terminal_window_ids.tmp"
+)
 
 close_terminal_window_by_id() {
   local win_id="$1"
@@ -28,6 +32,24 @@ on run argv
   end tell
 end run
 APPLESCRIPT
+}
+
+resolve_state_file() {
+  local legacy_file
+
+  if [[ -e "${STATE_FILE}" ]]; then
+    printf '%s\n' "${STATE_FILE}"
+    return
+  fi
+
+  for legacy_file in "${LEGACY_STATE_FILES[@]}"; do
+    if [[ -e "${legacy_file}" ]]; then
+      printf '%s\n' "${legacy_file}"
+      return
+    fi
+  done
+
+  printf '%s\n' "${STATE_FILE}"
 }
 
 quit_docker_desktop() {
@@ -62,12 +84,13 @@ fi
 pkill -f "[o]llama serve" >/dev/null 2>&1 || true
 
 # Close Terminal windows created by Start script
-if [[ ! -e "${STATE_FILE}" ]]; then
-  echo "No saved Terminal window state found at ${STATE_FILE}."
-elif [[ ! -f "${STATE_FILE}" ]]; then
-  echo "Warning: State path is not a regular file: ${STATE_FILE}"
-elif [[ ! -s "${STATE_FILE}" ]]; then
-  echo "State file exists but is empty: ${STATE_FILE}"
+RESOLVED_STATE_FILE="$(resolve_state_file)"
+if [[ ! -e "${RESOLVED_STATE_FILE}" ]]; then
+  echo "No saved Terminal window state found at ${RESOLVED_STATE_FILE}."
+elif [[ ! -f "${RESOLVED_STATE_FILE}" ]]; then
+  echo "Warning: State path is not a regular file: ${RESOLVED_STATE_FILE}"
+elif [[ ! -s "${RESOLVED_STATE_FILE}" ]]; then
+  echo "State file exists but is empty: ${RESOLVED_STATE_FILE}"
 else
   while IFS= read -r WIN_ID; do
     [[ -z "${WIN_ID}" ]] && continue
@@ -76,11 +99,14 @@ else
     else
       echo "Warning: Ignoring corrupt window id in state file: ${WIN_ID}"
     fi
-  done < "${STATE_FILE}"
+  done < "${RESOLVED_STATE_FILE}"
 fi
 
-# Delete the temp state file
+# Delete state files
 rm -f "${STATE_FILE}" >/dev/null 2>&1 || true
+for legacy_file in "${LEGACY_STATE_FILES[@]}"; do
+  rm -f "${legacy_file}" >/dev/null 2>&1 || true
+done
 
 # Quit Docker Desktop completely
 if pgrep -x "Docker" >/dev/null 2>&1 || pgrep -x "Docker Desktop" >/dev/null 2>&1; then

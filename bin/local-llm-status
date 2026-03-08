@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WEBUI_NAME="open-webui"
+WEBUI_URL="http://localhost:3000"
+STATE_DIR="${LOCAL_LLM_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/local-llm}"
+STATE_FILE="${STATE_DIR}/terminal_window_ids.tmp"
+
+if [[ "${1-}" == "--help" || "${1-}" == "-h" ]]; then
+  cat <<'USAGE'
+Usage: local-llm-status
+
+Shows current runtime status for Docker, Ollama, Open WebUI, and local state file.
+USAGE
+  exit 0
+fi
+
+line() { printf '%-24s %s\n' "$1" "$2"; }
+
+if command -v docker >/dev/null 2>&1; then
+  line "docker_cli" "present ($(command -v docker))"
+  if docker info >/dev/null 2>&1; then
+    line "docker_daemon" "reachable"
+  else
+    line "docker_daemon" "unreachable"
+  fi
+else
+  line "docker_cli" "missing"
+  line "docker_daemon" "unknown"
+fi
+
+if command -v ollama >/dev/null 2>&1; then
+  line "ollama_binary" "present ($(command -v ollama))"
+  if ollama list >/dev/null 2>&1; then
+    line "ollama_service" "responding"
+  else
+    line "ollama_service" "not responding"
+  fi
+else
+  line "ollama_binary" "missing"
+  line "ollama_service" "unknown"
+fi
+
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  if docker ps --format '{{.Names}}' | grep -qx "${WEBUI_NAME}"; then
+    line "open_webui_container" "running"
+  elif docker ps -a --format '{{.Names}}' | grep -qx "${WEBUI_NAME}"; then
+    line "open_webui_container" "stopped"
+  else
+    line "open_webui_container" "missing"
+  fi
+else
+  line "open_webui_container" "unknown"
+fi
+
+if curl -fsS --max-time 2 "${WEBUI_URL}" >/dev/null 2>&1; then
+  line "webui_http" "reachable (${WEBUI_URL})"
+else
+  line "webui_http" "unreachable (${WEBUI_URL})"
+fi
+
+if [[ -f "${STATE_FILE}" ]]; then
+  line "state_file" "present (${STATE_FILE})"
+  line "state_entries" "$(wc -l < "${STATE_FILE}" | tr -d ' ')"
+else
+  line "state_file" "missing (${STATE_FILE})"
+fi

@@ -12,6 +12,10 @@ WEBUI_URL="http://localhost:3000"
 # State file stored in user state directory (override with LOCAL_LLM_STATE_DIR)
 STATE_DIR="${LOCAL_LLM_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/local-llm}"
 STATE_FILE="${STATE_DIR}/terminal_window_ids.tmp"
+LEGACY_STATE_FILES=(
+  "/tmp/local_llm_terminal_window_ids.tmp"
+  "/tmp/terminal_window_ids.tmp"
+)
 
 say_err() { printf '%s\n' "$*" >&2; }
 
@@ -28,6 +32,22 @@ ensure_state_dir() {
     fi
     chmod 700 "${STATE_DIR}" 2>/dev/null || true
   fi
+}
+
+relocate_legacy_state_file() {
+  local legacy_file
+
+  if [[ -f "${STATE_FILE}" && -s "${STATE_FILE}" ]]; then
+    return
+  fi
+
+  for legacy_file in "${LEGACY_STATE_FILES[@]}"; do
+    if [[ -f "${legacy_file}" && -s "${legacy_file}" ]]; then
+      cp "${legacy_file}" "${STATE_FILE}" 2>/dev/null || true
+      rm -f "${legacy_file}" 2>/dev/null || true
+      return
+    fi
+  done
 }
 
 # Open a Terminal window running a command and return the window id
@@ -57,6 +77,7 @@ APPLESCRIPT
 echo "Starting AI stack..."
 
 ensure_state_dir
+relocate_legacy_state_file
 
 # Create/reset state file
 : > "${STATE_FILE}" 2>/dev/null || {
