@@ -24,8 +24,8 @@ If `local-llm-doctor` reports issues, follow the exact `fix:` lines it prints an
 
 ## Commands
 
-- `local-llm-start` → runs `Start AI.command`
-- `local-llm-stop` → runs `Stop AI.command`
+- `local-llm-start [--state-dir DIR]` → runs `Start AI.command`
+- `local-llm-stop [--state-dir DIR]` → runs `Stop AI.command`
 - `local-llm-doctor` → checks prerequisites + runtime readiness:
   - `docker` CLI present
   - Docker Desktop app detected (macOS)
@@ -33,6 +33,8 @@ If `local-llm-doctor` reports issues, follow the exact `fix:` lines it prints an
   - `ollama` binary present and service responding
   - Open WebUI container running with port mapping
   - WebUI reachable at `http://localhost:3000`
+- `local-llm-status` → snapshot status for docker/ollama/open-webui/state file
+- `local-llm-cleanup [--remove-container] [--remove-volume]` → clear local state artifacts and optional container/volume
 
 ## Legacy/manual installer
 
@@ -46,4 +48,24 @@ Runtime state (Terminal window IDs used by start/stop) is stored in:
 
 - `${LOCAL_LLM_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/local-llm}/terminal_window_ids.tmp`
 
-You can override the directory by setting `LOCAL_LLM_STATE_DIR` before invoking `local-llm-start` / `local-llm-stop`.
+You can override the directory by setting `LOCAL_LLM_STATE_DIR` or passing `--state-dir` to wrappers.
+
+Legacy state files under `/tmp` are auto-cleaned during stop/cleanup for compatibility.
+
+## Release plan
+
+1. **Phase 1 (Compatibility Release)**
+   - Ship wrappers + formula packaging.
+   - Keep `.command` internals mostly unchanged.
+   - Relocate state path into user state dir with backward-compatible fallback handling.
+2. **Phase 2 (Hardening Release)**
+   - Add `local-llm-doctor`, `local-llm-status`, and `local-llm-cleanup` commands.
+   - Improve wrapper help output and optional flags.
+   - Refine formula caveats/docs from early user feedback.
+
+## Rollback note
+
+If wrapper regressions occur, users can still execute the `.command` scripts directly:
+
+- `Start AI.command`
+- `Stop AI.command`

@@ -8,17 +8,7 @@ class LocalLlmStartStopScripts < Formula
 
   def install
     libexec.install "Start AI.command", "Stop AI.command", "Install Dependencies.command"
-    bin.install "bin/local-llm-doctor"
-
-    (bin/"local-llm-start").write <<~EOS
-      #!/usr/bin/env bash
-      exec /bin/bash "#{libexec}/Start AI.command" "$@"
-    EOS
-
-    (bin/"local-llm-stop").write <<~EOS
-      #!/usr/bin/env bash
-      exec /bin/bash "#{libexec}/Stop AI.command" "$@"
-    EOS
+    bin.install "bin/local-llm-start", "bin/local-llm-stop", "bin/local-llm-doctor", "bin/local-llm-status", "bin/local-llm-cleanup"
   end
 
   def caveats
@@ -33,10 +23,21 @@ class LocalLlmStartStopScripts < Formula
 
       Verify your environment:
         local-llm-doctor
+
+      Quick checks and maintenance:
+        local-llm-status
+        local-llm-cleanup
+
+      Rollback note:
+        If wrapper behavior regresses, you can still run the underlying scripts directly:
+        "$(brew --prefix)/Cellar/#{name}/#{version}/libexec/Start AI.command"
+        "$(brew --prefix)/Cellar/#{name}/#{version}/libexec/Stop AI.command"
     EOS
   end
 
   test do
     assert_match "Usage: local-llm-doctor", shell_output("#{bin}/local-llm-doctor --help")
+    assert_match "Usage: local-llm-status", shell_output("#{bin}/local-llm-status --help")
+    assert_match "Usage: local-llm-cleanup", shell_output("#{bin}/local-llm-cleanup --help")
   end
 end
