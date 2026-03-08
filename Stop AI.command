@@ -17,6 +17,16 @@ LEGACY_STATE_FILES=(
   "/tmp/terminal_window_ids.tmp"
 )
 
+
+say_err() { printf '%s\n' "$*" >&2; }
+
+require_macos() {
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    say_err "Error: Stop AI.command only supports macOS (Terminal + AppleScript required)."
+    exit 1
+  fi
+}
+
 close_terminal_window_by_id() {
   local win_id="$1"
   /usr/bin/osascript - "$win_id" <<'APPLESCRIPT' >/dev/null 2>&1
@@ -74,6 +84,8 @@ APPLESCRIPT
     killall "Docker Desktop" >/dev/null 2>&1 || true
   fi
 }
+
+require_macos
 
 echo "Stopping AI stack..."
 
