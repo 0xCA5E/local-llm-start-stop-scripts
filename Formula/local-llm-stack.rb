@@ -10,6 +10,7 @@ class LocalLlmStack < Formula
     libexec.install "Stop AI.command"
     libexec.install "Install Dependencies.command"
     libexec.install "Clean AI.command"
+    libexec.install "Doctor AI.command"
 
     (bin/"local-llm-start").write <<~EOS
       #!/bin/bash
@@ -30,6 +31,16 @@ class LocalLlmStack < Formula
       #!/bin/bash
       exec "#{libexec}/Clean AI.command" "$@"
     EOS
+
+    (bin/"local-llm-doctor").write <<~EOS
+      #!/bin/bash
+      exec "#{libexec}/Doctor AI.command" "$@"
+    EOS
+
+    (bin/"local-llm-status").write <<~EOS
+      #!/bin/bash
+      exec "#{libexec}/Doctor AI.command" "$@"
+    EOS
   end
 
   def caveats
@@ -45,6 +56,8 @@ class LocalLlmStack < Formula
         - local-llm-start
         - local-llm-stop
         - local-llm-clean  (optional destructive teardown)
+        - local-llm-doctor (status/health checks)
+        - local-llm-status (alias for local-llm-doctor)
     EOS
   end
 
@@ -52,5 +65,7 @@ class LocalLlmStack < Formula
     assert_predicate bin/"local-llm-start", :exist?
     assert_predicate bin/"local-llm-stop", :exist?
     assert_predicate bin/"local-llm-clean", :exist?
+    assert_predicate bin/"local-llm-doctor", :exist?
+    assert_predicate bin/"local-llm-status", :exist?
   end
 end
