@@ -2,45 +2,13 @@ class LocalLlmStack < Formula
   desc "Local scripts to start/stop a macOS Docker + Ollama + Open WebUI stack"
   homepage "https://github.com/0xCA5E/local-llm-start-stop-scripts"
   head "https://github.com/0xCA5E/local-llm-start-stop-scripts.git", branch: "main"
+  license "MIT"
 
   depends_on :macos
 
   def install
-    libexec.install "Start AI.command"
-    libexec.install "Stop AI.command"
-    libexec.install "Install Dependencies.command"
-    libexec.install "Clean AI.command"
-    libexec.install "Doctor AI.command"
-
-    (bin/"local-llm-start").write <<~EOS
-      #!/bin/bash
-      exec "#{libexec}/Start AI.command" "$@"
-    EOS
-
-    (bin/"local-llm-stop").write <<~EOS
-      #!/bin/bash
-      exec "#{libexec}/Stop AI.command" "$@"
-    EOS
-
-    (bin/"local-llm-install-deps").write <<~EOS
-      #!/bin/bash
-      exec "#{libexec}/Install Dependencies.command" "$@"
-    EOS
-
-    (bin/"local-llm-clean").write <<~EOS
-      #!/bin/bash
-      exec "#{libexec}/Clean AI.command" "$@"
-    EOS
-
-    (bin/"local-llm-doctor").write <<~EOS
-      #!/bin/bash
-      exec "#{libexec}/Doctor AI.command" "$@"
-    EOS
-
-    (bin/"local-llm-status").write <<~EOS
-      #!/bin/bash
-      exec "#{libexec}/Doctor AI.command" "$@"
-    EOS
+    libexec.install "Start AI.command", "Stop AI.command", "Install Dependencies.command", "Clean AI.command", "Doctor AI.command"
+    bin.install "bin/local-llm-install-deps", "bin/local-llm-start", "bin/local-llm-stop", "bin/local-llm-clean", "bin/local-llm-doctor", "bin/local-llm-status"
   end
 
   def caveats
@@ -55,13 +23,14 @@ class LocalLlmStack < Formula
         - local-llm-install-deps
         - local-llm-start
         - local-llm-stop
-        - local-llm-clean  (optional destructive teardown)
-        - local-llm-doctor (status/health checks)
-        - local-llm-status (alias for local-llm-doctor)
+        - local-llm-clean
+        - local-llm-doctor
+        - local-llm-status (alias of local-llm-doctor)
     EOS
   end
 
   test do
+    assert_predicate bin/"local-llm-install-deps", :exist?
     assert_predicate bin/"local-llm-start", :exist?
     assert_predicate bin/"local-llm-stop", :exist?
     assert_predicate bin/"local-llm-clean", :exist?

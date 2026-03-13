@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PREFIX_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+
+if [[ -f "${PREFIX_DIR}/libexec/Clean AI.command" ]]; then
+  TARGET_SCRIPT="${PREFIX_DIR}/libexec/Clean AI.command"
+else
+  TARGET_SCRIPT="${PREFIX_DIR}/Clean AI.command"
+fi
+
+exec /bin/bash "$TARGET_SCRIPT" "$@"
