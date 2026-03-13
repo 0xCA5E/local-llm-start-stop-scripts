@@ -1,0 +1,10 @@
+.DS_Store
+**/.DS_Store
+
+# Editor settings
+.vscode/
+
+# Common temp/log files
+*.log
+*.tmp
+*.swp
