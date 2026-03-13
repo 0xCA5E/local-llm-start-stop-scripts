@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WEBUI_NAME="open-webui"
+WEBUI_VOLUME="open-webui"
+WEBUI_IMAGE="ghcr.io/open-webui/open-webui:main"
+STATE_DIR="${LOCAL_LLM_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/local-llm}"
+OLLAMA_DIR="${OLLAMA_HOME:-$HOME/.ollama}"
+OLLAMA_LIBRARY_DIR="$HOME/Library/Application Support/Ollama"
+DOCKER_APP_SUPPORT_DIR="$HOME/Library/Application Support/Docker Desktop"
+DOCKER_CONTAINER_DIR="$HOME/Library/Containers/com.docker.docker"
+DOCKER_GROUP_DIR="$HOME/Library/Group Containers/group.com.docker"
+DOCKER_CACHE_DIR="$HOME/Library/Caches/com.docker.docker"
+DOCKER_CONFIG_DIR="$HOME/.docker"
+
+resolve_script_dir() {
+  local source="${BASH_SOURCE[0]}"
+  local dir=""
+
+  while [[ -h "${source}" ]]; do
+    dir="$(cd -P -- "$(dirname -- "${source}")" && pwd)"
+    source="$(readlink "${source}")"
+    [[ "${source}" != /* ]] && source="${dir}/${source}"
+  done
+
+  cd -P -- "$(dirname -- "${source}")" && pwd
+}
+
+SCRIPT_DIR="$(resolve_script_dir)"
+ROOT_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+STOP_SCRIPT="${ROOT_DIR}/Stop AI.command"
+
+say() { printf '%s\n' "$*"; }
+has_tty() { [[ -t 0 && -t 1 && -r /dev/tty ]]; }
+
+should_remove_models() {
+  local answer=""
+
+  if [[ -n "${LOCAL_LLM_REMOVE_MODELS:-}" ]]; then
+    case "${LOCAL_LLM_REMOVE_MODELS}" in
+      1|true|TRUE|yes|YES|y|Y) return 0 ;;
+      0|false|FALSE|no|NO|n|N) return 1 ;;
+    esac
+  fi
+
+  if ! has_tty; then
+    say "No interactive terminal detected; defaulting to full cleanup."
+    return 0
+  fi
+
+  printf 'Remove Ollama models too? [y/N] ' > /dev/tty
+  read -r answer < /dev/tty || true
+  case "${answer}" in
+    y|Y|yes|YES) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+has_docker_desktop_app() {
+  open -Ra "Docker" >/dev/null 2>&1 || open -Ra "Docker Desktop" >/dev/null 2>&1
+}
+
+wait_for_docker() {
+  local attempts=45
+
+  if ! command -v docker >/dev/null 2>&1; then
+    return 1
+  fi
+
+  if docker info >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [[ "$(uname -s)" == "Darwin" ]] && has_docker_desktop_app; then
+    open -a "Docker" 2>/dev/null || open -a "Docker Desktop" 2>/dev/null || true
+    while (( attempts > 0 )); do
+      if docker info >/dev/null 2>&1; then
+        return 0
+      fi
+      sleep 2
+      attempts=$((attempts - 1))
+    done
+  fi
+
+  return 1
+}
+
+stop_stack() {
+  if [[ -x "${STOP_SCRIPT}" ]]; then
+    LOCAL_LLM_NO_SELF_CLOSE=1 LOCAL_LLM_SKIP_DOCKER_QUIT=1 /bin/bash "${STOP_SCRIPT}" >/dev/null 2>&1 || true
+  fi
+}
+
+remove_docker_runtime_artifacts() {
+  if ! wait_for_docker; then
+    say "Docker daemon not reachable; skipping Docker image/container cleanup."
+    return
+  fi
+
+  docker rm -f "${WEBUI_NAME}" >/dev/null 2>&1 || true
+  docker volume rm "${WEBUI_VOLUME}" >/dev/null 2>&1 || true
+  docker image rm "${WEBUI_IMAGE}" >/dev/null 2>&1 || true
+}
+
+remove_path() {
+  local target="$1"
+  [[ -e "${target}" ]] || return 0
+  rm -rf "${target}" >/dev/null 2>&1 || true
+}
+
+preserve_models_only() {
+  local models_dir="${OLLAMA_DIR}/models"
+  local tmp_dir=""
+
+  if [[ ! -d "${models_dir}" ]]; then
+    remove_path "${OLLAMA_DIR}"
+    return
+  fi
+
+  tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/local-llm-models.XXXXXX")"
+  mv "${models_dir}" "${tmp_dir}/models"
+  remove_path "${OLLAMA_DIR}"
+  mkdir -p "${OLLAMA_DIR}"
+  mv "${tmp_dir}/models" "${OLLAMA_DIR}/models"
+  rmdir "${tmp_dir}" >/dev/null 2>&1 || true
+}
+
+uninstall_homebrew_dependency() {
+  local kind="$1"
+  local token="$2"
+
+  if ! command -v brew >/dev/null 2>&1; then
+    return
+  fi
+
+  case "${kind}" in
+    formula)
+      brew list --formula "${token}" >/dev/null 2>&1 || return
+      brew uninstall --formula --force "${token}" >/dev/null 2>&1 || true
+      ;;
+    cask)
+      brew list --cask "${token}" >/dev/null 2>&1 || return
+      brew uninstall --cask --force "${token}" >/dev/null 2>&1 || true
+      ;;
+  esac
+}
+
+main() {
+  local remove_models=0
+
+  should_remove_models && remove_models=1
+
+  stop_stack
+  remove_docker_runtime_artifacts
+
+  if [[ "${remove_models}" -eq 1 ]]; then
+    say "Removing Ollama models."
+    remove_path "${OLLAMA_DIR}"
+  else
+    say "Preserving Ollama models only."
+    preserve_models_only
+  fi
+
+  remove_path "${OLLAMA_LIBRARY_DIR}"
+  remove_path "${STATE_DIR}"
+  remove_path "/tmp/local_llm_terminal_window_ids.tmp"
+  remove_path "/tmp/terminal_window_ids.tmp"
+
+  uninstall_homebrew_dependency formula "ollama"
+  uninstall_homebrew_dependency cask "docker"
+
+  remove_path "${DOCKER_APP_SUPPORT_DIR}"
+  remove_path "${DOCKER_CONTAINER_DIR}"
+  remove_path "${DOCKER_GROUP_DIR}"
+  remove_path "${DOCKER_CACHE_DIR}"
+  remove_path "${DOCKER_CONFIG_DIR}"
+
+  say "local-llm-stack uninstall cleanup complete."
+}
+
+main "$@"

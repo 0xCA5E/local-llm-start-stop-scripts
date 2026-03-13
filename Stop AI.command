@@ -2,7 +2,7 @@
 # Stop AI.command
 # Stops: Open WebUI container + Ollama server,
 # closes the exact Terminal windows created by Start (tracked by window IDs),
-# quits Docker Desktop completely,
+# optionally quits Docker Desktop completely,
 # deletes the temp state file.
 
 set -euo pipefail
@@ -120,23 +120,25 @@ for legacy_file in "${LEGACY_STATE_FILES[@]}"; do
   rm -f "${legacy_file}" >/dev/null 2>&1 || true
 done
 
-# Quit Docker Desktop completely
-if pgrep -x "Docker" >/dev/null 2>&1 || pgrep -x "Docker Desktop" >/dev/null 2>&1; then
+# Quit Docker Desktop completely unless the caller wants to keep it running.
+if [[ "${LOCAL_LLM_SKIP_DOCKER_QUIT:-0}" != "1" ]] && \
+   { pgrep -x "Docker" >/dev/null 2>&1 || pgrep -x "Docker Desktop" >/dev/null 2>&1; }; then
   echo "Quitting Docker Desktop..."
   quit_docker_desktop
 fi
 
 echo "AI stack stopped."
 
-# Close the Terminal window that ran this Stop script (do it async so the script can finish)
-(
-  sleep 0.4
-  /usr/bin/osascript <<'APPLESCRIPT' >/dev/null 2>&1
+# Close the Terminal window that ran this Stop script unless disabled by the caller.
+if [[ "${LOCAL_LLM_NO_SELF_CLOSE:-0}" != "1" ]]; then
+  (
+    sleep 0.4
+    /usr/bin/osascript <<'APPLESCRIPT' >/dev/null 2>&1
 tell application "Terminal"
   try
     close front window saving no
   end try
 end tell
 APPLESCRIPT
-) & disown
-
+  ) & disown
+fi

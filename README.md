@@ -1,6 +1,6 @@
 # local-llm-stack
 
-Homebrew formula + helper scripts to run a local Ollama + Open WebUI stack on macOS with Docker Desktop.
+Homebrew cask + helper scripts to run a local Ollama + Open WebUI stack on macOS with Docker Desktop.
 
 ## CLI contract
 
@@ -20,7 +20,7 @@ Current stable CLI contract: **v1**.
   - Stops `ollama serve`.
   - Closes Terminal windows previously tracked by `local-llm-start`.
   - Quits Docker Desktop.
-- `local-llm-doctor` (also available as `local-llm-status`)
+- `local-llm-doctor`
   - Reports host/OS compatibility.
   - Reports whether required CLIs are present (`docker`, `ollama`, `curl`, `osascript`).
   - Reports Docker daemon readiness.
@@ -39,28 +39,20 @@ Future non-breaking flags may be added (for example `--no-open` and `--no-log-wi
 ## Install
 
 ```bash
-brew tap <org>/tap
-brew install local-llm-stack
+brew tap 0xCA5E/tools
+brew install --cask local-llm-stack
 ```
 
 After install:
 
-1. Run `local-llm-install-deps` to install/check dependencies.
-2. Launch Docker Desktop once and complete first-run prompts/permissions.
-3. Run `local-llm-start`.
+1. Launch Docker Desktop once and complete first-run prompts/permissions.
+2. Run `local-llm-start`.
 
 ## Commands
 
-- `local-llm-install-deps`: install/check Homebrew, Ollama, and Docker Desktop.
 - `local-llm-start`: start/orchestrate the stack and open browser/log windows (v1 default behavior).
 - `local-llm-stop`: stop stack services, close managed Terminal windows, and quit Docker Desktop.
-- `local-llm-doctor` / `local-llm-status`: inspect stack health and dependency/runtime status.
-- `local-llm-clean`: **optional destructive cleanup** that removes the Open WebUI container and volume after explicit `CLEAN` confirmation.
-
-## Legacy mapping
-
-- `Start AI.command` → `local-llm-start`
-- `Stop AI.command` → `local-llm-stop`
+- `local-llm-doctor`: inspect stack health and dependency/runtime status.
 
 ## Uninstall
 
@@ -68,5 +60,9 @@ After install:
 brew uninstall local-llm-stack
 ```
 
-Uninstalling the formula removes the command wrappers and packaged scripts, but does **not** remove Docker containers, named volumes, or app data by default.
-Use `local-llm-clean` before uninstall if you want to tear down the managed container/volume.
+Uninstalling the cask removes the packaged commands and prompts whether to remove Ollama models too.
+
+- `y`: full cleanup, including Ollama models.
+- `n` or Enter: remove everything except Ollama models.
+
+In all cases, uninstall removes the managed Open WebUI Docker image/container/volume, local state files, and Docker Desktop data. In non-interactive contexts, uninstall defaults to full cleanup.
